@@ -1341,6 +1341,7 @@ public class DiscoveryClient implements EurekaClient {
                     clientConfig.getInstanceInfoReplicationIntervalSeconds(),
                     2); // burstSize
 
+            // 服务服务实例状态的监听器
             statusChangeListener = new ApplicationInfoManager.StatusChangeListener() {
                 @Override
                 public String getId() {
@@ -1354,6 +1355,7 @@ public class DiscoveryClient implements EurekaClient {
                 }
             };
 
+            // 如果配置了监听，就注册监听
             if (clientConfig.shouldOnDemandUpdateStatusChange()) {
                 applicationInfoManager.registerStatusChangeListener(statusChangeListener);
             }
