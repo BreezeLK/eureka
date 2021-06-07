@@ -84,6 +84,9 @@ public class Applications {
     private Long versionDelta;
     @XStreamImplicit
     private final AbstractQueue<Application> applications;
+
+    // 这里搞了好多种数据结构，就是让你可以通过appName来获取一个Application
+    // 还可以根据虚拟主机名获取Application
     private final Map<String, Application> appNameApplicationMap;
     private final Map<String, VipIndexSupport> virtualHostNameAppMap;
     private final Map<String, VipIndexSupport> secureVirtualHostNameAppMap;

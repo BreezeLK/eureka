@@ -939,24 +939,30 @@ public class DiscoveryClient implements EurekaClient {
         if (isShutdown.compareAndSet(false, true)) {
             logger.info("Shutting down DiscoveryClient ...");
 
+            // 这块逻辑不是很核心和重要的
             if (statusChangeListener != null && applicationInfoManager != null) {
                 applicationInfoManager.unregisterStatusChangeListener(statusChangeListener.getId());
             }
 
+            // 将线程池都给shutdown掉了，释放资源，停止运行的线程
             cancelScheduledTasks();
 
             // If APPINFO was registered
             if (applicationInfoManager != null
                     && clientConfig.shouldRegisterWithEureka()
                     && clientConfig.shouldUnregisterOnShutdown()) {
+                // 将服务实例的状态设置为:DOWN
                 applicationInfoManager.setInstanceStatus(InstanceStatus.DOWN);
+                // 调用unregister()方法
                 unregister();
             }
 
+            // 关闭网络通信组件
             if (eurekaTransport != null) {
                 eurekaTransport.shutdown();
             }
 
+            // 将监听器都给关了
             heartbeatStalenessMonitor.shutdown();
             registryStalenessMonitor.shutdown();
 
@@ -1002,10 +1008,19 @@ public class DiscoveryClient implements EurekaClient {
             // applications
             Applications applications = getApplications();
 
+            // Boolean shouldDisableDelta = clientConfig.shouldDisableDelta();
+            // Boolean isVipAddressEmpty = !Strings.isNullOrEmpty(clientConfig.getRegistryRefreshSingleVipAddress());
+            // Boolean isApplicationsEmpty = applications == null;
+            // Boolean isRegisteredApplicationsEmpty = applications.getRegisteredApplications().size() == 0;
+            // Boolean isClientVersionNotSupportedDelta = applications.getVersion() == -1;
+
+            // if (shouldDisableDelta || isVipAddressEmpty || isApplicationsEmpty
+            // || isRegisteredApplicationsEmpty || isClientVersionNotSupportedDelta) {}
+
             if (clientConfig.shouldDisableDelta()
                     || (!Strings.isNullOrEmpty(clientConfig.getRegistryRefreshSingleVipAddress()))
-                    || forceFullRegistryFetch
-                    || (applications == null)
+                    || forceFullRegistryFetch // 增量抓取的时候，这个是false
+                    || (applications == null) // 因为之前都已经抓取过一次了，所以这个本地是有Application
                     || (applications.getRegisteredApplications().size() == 0)
                     || (applications.getVersion() == -1)) //Client application does not have latest library supporting delta
             {
@@ -1018,6 +1033,7 @@ public class DiscoveryClient implements EurekaClient {
                 logger.info("Application version is -1: {}", (applications.getVersion() == -1));
                 getAndStoreFullRegistry();
             } else {
+                // 增量抓取
                 getAndUpdateDelta(applications);
             }
             applications.setAppsHashCode(applications.getReconcileHashCode());
@@ -1145,6 +1161,7 @@ public class DiscoveryClient implements EurekaClient {
         if (delta == null) {
             logger.warn("The server does not allow the delta revision to be applied because it is not safe. "
                     + "Hence got the full registry.");
+            // 如果是null的话，就会去拿全量的注册表
             getAndStoreFullRegistry();
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
             logger.debug("Got delta update with apps hashcode {}", delta.getAppsHashCode());
@@ -1152,6 +1169,7 @@ public class DiscoveryClient implements EurekaClient {
             if (fetchRegistryUpdateLock.tryLock()) {
                 try {
                     updateDelta(delta);
+                    // 对更新完的注册表，计算一个hash值
                     reconcileHashCode = getReconcileHashCode(applications);
                 } finally {
                     fetchRegistryUpdateLock.unlock();
