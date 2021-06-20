@@ -161,6 +161,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
         this.numberOfReplicationsLastMin.start();
         this.peerEurekaNodes = peerEurekaNodes;
         initializedResponseCache();
+        // 初始化的时候，会来启动一个定时调度的任务
         scheduleRenewalThresholdUpdateTask();
         initRemoteRegionRegistry();
 
@@ -249,6 +250,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
         this.expectedNumberOfClientsSendingRenews = count;
+        // 如果有20个服务实例，30秒发一次心跳，那么一分钟期望值就是40个心跳
         updateRenewsPerMinThreshold();
         logger.info("Got {} instances from neighboring DS node", count);
         logger.info("Renew threshold is: {}", numberOfRenewsPerMinThreshold);
@@ -488,10 +490,16 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
     @Override
     public boolean isLeaseExpirationEnabled() {
+        // 默认是true，如果你改为false，关闭自我保护机制的话，这个方法永远会返回false
+        // 随时都可以清理故障的服务实例
         if (!isSelfPreservationModeEnabled()) {
             // The self preservation mode is disabled, hence allowing the instances to expire.
             return true;
         }
+        // numberOfRenewsPerMinThreshold --> 我期望的是一分钟要有多少次心跳发送过来，比如所有服务实例一分钟得发送100次心跳
+        // getNumOfRenewsInLastMin() --> 上一分钟所有服务实例一共发送过来多少次心跳
+        // 如果上一分钟的心跳次数（102次） > 我期望的100次，就ok，返回true --> 那么就可以清理故障的服务实例
+        // 如果上一分钟的心跳次数太少了（20次） < 我期望的100次，此时会返回这个false
         return numberOfRenewsPerMinThreshold > 0 && getNumOfRenewsInLastMin() > numberOfRenewsPerMinThreshold;
     }
 
@@ -540,6 +548,9 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      */
     private void updateRenewalThreshold() {
         try {
+            // 将自己作为eureka client，从其他的eureka server拉取注册表
+            // 合并到自己的本地去
+            // 将从别的eureka server拉取到的服务实例的数量作为count
             Applications apps = eurekaClient.getApplications();
             int count = 0;
             for (Application app : apps.getRegisteredApplications()) {
