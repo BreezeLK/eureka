@@ -609,7 +609,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             type = com.netflix.servo.annotations.DataSourceType.GAUGE)
     @Override
     public int isBelowRenewThresold() {
-        if ((getNumOfRenewsInLastMin() <= numberOfRenewsPerMinThreshold)
+        if ((getNumOfRenewsInLastMin() <= numberOfRenewsPerMinThreshold) // 服务实例数量 * 2 * 0.85
                 &&
                 ((this.startupTime > 0) && (System.currentTimeMillis() > this.startupTime + (serverConfig.getWaitTimeInMsWhenSyncEmpty())))) {
             return 1;
